@@ -1,0 +1,25 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "mkdir -p .claude && echo \"Session started: $(date '+%Y-%m-%d %H:%M:%S')\" >> .claude/session.log"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo \"[$(date '+%H:%M:%S')] File modified: $(echo $CLAUDE_TOOL_INPUT | python3 -c \"import sys,json; d=json.load(sys.stdin); print(d.get('file_path', d.get('path', 'unknown')))\" 2>/dev/null || echo 'unknown')\" >> .claude/session.log"
+          }
+        ]
+      }
+    ]
+  }
+}
