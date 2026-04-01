@@ -1,0 +1,13 @@
+# 環境変数（絶対にコミットしない）
+.env
+.env.local
+
+# 生成されたレポート（必要に応じてコミットする）
+reports/*.html
+
+# ログ
+.claude/session.log
+
+# OS
+.DS_Store
+Thumbs.db
