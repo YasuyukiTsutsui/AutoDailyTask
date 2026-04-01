@@ -2,7 +2,7 @@
 name: ai-report
 description: |
   生成AIに関する最新情報（技術動向・社会実装・開発者知見）を調査し、
-  視覚化したHTMLレポートを生成してSlackチャンネルにアップロードする。
+  視覚化したHTMLレポートを生成してPDFに変換、Claude上で直接提供する。
   引数なしで当日分を生成。引数に日付(YYYY-MM-DD)を渡すと指定日分を生成。
 disable-model-invocation: false
 user-invocable: true
@@ -17,7 +17,7 @@ allowed-tools:
 ## 目的
 
 生成AIに関する最新情報を3つの観点で調査し、視覚化したHTMLレポートを生成して
-Slackチャンネルにアップロードする。
+PDFに変換し、Claude上で直接読める形で提供する。
 
 調査対象期間: 直近7日間の情報を優先する。
 
@@ -522,15 +522,16 @@ Slackチャンネルにアップロードする。
 
 ---
 
-## Step 3: Slackへのアップロード
+## Step 3: PDF変換とClaude上での提供
 
-HTMLファイルの生成が完了したら、以下のコマンドでSlackにアップロードする。
+HTMLファイルの生成が完了したら、以下のコマンドでPDFに変換する。
 
 ```bash
-bash scripts/upload-to-slack.sh "reports/ai-report-$DATE.html"
+python3 scripts/html-to-pdf.py "reports/ai-report-$DATE.html" "reports/ai-report-$DATE.pdf"
 ```
 
-スクリプトが成功すると、指定Slackチャンネルにファイルが投稿される。
+変換成功後、Readツールで `reports/ai-report-$DATE.pdf` を読み込み、
+ユーザーがClaude上でPDFの内容を直接確認できる状態にする。
 
 ---
 
@@ -538,15 +539,15 @@ bash scripts/upload-to-slack.sh "reports/ai-report-$DATE.html"
 
 - [ ] `reports/ai-report-YYYY-MM-DD.html` が生成されている
 - [ ] HTMLが有効で、すべての `<!-- FILL: ... -->` コメントが実データに置き換わっている
-- [ ] Slackアップロードスクリプトが成功（exit 0）している
-- [ ] アップロード完了メッセージをユーザーに報告する
+- [ ] `reports/ai-report-YYYY-MM-DD.pdf` が生成されている
+- [ ] ReadツールでPDFを読み込み、Claude上で表示する
+- [ ] ファイルパスをユーザーに報告する
 
 ---
 
 ## エラー対応
 
-- **環境変数未設定**: `SLACK_BOT_TOKEN` または `SLACK_CHANNEL_ID` が未設定の場合、
-  HTMLは生成するがSlack通知はスキップし、ユーザーに `.env` 設定を促す。
+- **weasyprintエラー**: `pip3 install weasyprint` でインストール。HTMLは保持する。
 - **WebSearch失敗**: 少なくとも1件のURLにアクセスできれば続行する。
   完全に検索不能な場合はユーザーに報告してスキップする。
-- **既存ファイル**: 同日付のHTMLが既に存在する場合は上書きする。
+- **既存ファイル**: 同日付のHTML/PDFが既に存在する場合は上書きする。

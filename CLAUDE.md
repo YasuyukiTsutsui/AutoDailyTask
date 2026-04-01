@@ -157,7 +157,7 @@ chore: 不要なアーカイブファイルを削除
 
 ### `/ai-report` — 生成AI最新動向レポート
 
-技術動向・社会実装・開発者知見の3領域を調査し、HTMLレポートを生成してSlackに通知する。
+技術動向・社会実装・開発者知見の3領域を調査し、HTMLレポートを生成してPDFに変換、Claude上で直接提供する。
 
 ```bash
 # 当日分のレポートを生成・投稿
@@ -167,15 +167,11 @@ chore: 不要なアーカイブファイルを削除
 /ai-report 2026-04-01
 ```
 
-**必要な環境変数** (`.env` に設定):
-```bash
-SLACK_BOT_TOKEN=xoxb-...       # Slack Bot Token（スコープ: files:write）
-SLACK_CHANNEL_ID=C...          # 投稿先チャンネルID
-```
+**依存**: `pip3 install weasyprint`（初回のみ）
 
-セットアップ: `cp .env.example .env` して値を記入する。
-
-**出力**: `reports/ai-report-YYYY-MM-DD.html`（ダークテーマ、CSSビジュアライゼーション付き）
+**出力**:
+- `reports/ai-report-YYYY-MM-DD.html`（ダークテーマ、CSSビジュアライゼーション付き）
+- `reports/ai-report-YYYY-MM-DD.pdf`（Claude上で直接表示可能）
 
 ## コンテキスト管理のベストプラクティス
 
