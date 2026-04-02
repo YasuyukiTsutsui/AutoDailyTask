@@ -26,9 +26,7 @@ set -euo pipefail
 # Format: "HH:MM skill-name [args]"
 # ---------------------------------------------------------------------------
 SCHEDULE=(
-  "08:00 ai-report"
-  "08:05 trading-card-release"
-  "09:00 restock-watch"
+  "07:00 daily-routine"
 )
 
 # ---------------------------------------------------------------------------

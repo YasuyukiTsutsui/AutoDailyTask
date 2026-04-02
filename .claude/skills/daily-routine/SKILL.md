@@ -26,13 +26,14 @@ allowed-tools:
 |---|---|---|
 | `ai-report` | 生成AI最新動向レポート | 不要 |
 | `trading-card-release` | トレカ新発売情報 | 不要 |
+| `restock-watch` | 再販・再入荷ウォッチ | 不要 |
 | `fashion-report` | ファッショントレンド | 必要（初回のみ） |
 
 ## 手順
 
 ### Step 1: 実行対象の決定
 
-- `$ARGUMENTS` が空 → ヒアリング不要なスキル（`ai-report`, `trading-card-release`）を全て実行対象にする
+- `$ARGUMENTS` が空 → ヒアリング不要なスキル（`ai-report`, `trading-card-release`, `restock-watch`）を全て実行対象にする
 - `$ARGUMENTS` にスキル名がカンマ区切りで指定されている → 指定されたもののみ実行
 - `fashion-report` が対象に含まれる場合、先にヒアリングを完了させてから並列実行に進む
 
