@@ -1,0 +1,186 @@
+---
+name: trading-card-release
+description: |
+  トレカの新発売情報を収集して、以下のフォーマットで整理して報告してください。
+disable-model-invocation: false
+user-invocable: true
+allowed-tools:
+  - WebSearch
+  - WebFetch
+  - Write
+  - Read
+  - Bash
+---
+
+## 目的
+
+トレーディングカードの新発売情報・予約情報を幅広く収集し、
+HTMLレポートを生成する。
+
+---
+
+## Step 1: 最新情報の調査
+
+WebSearch を使って直近のトレカ新発売情報を検索する。
+
+### 検索対象
+
+$ARGUMENTS が指定されている場合はそのタイトルに絞る。
+空の場合は以下の**全タイトル**を対象にする：
+
+**国内主要タイトル**
+- ポケモンカードゲーム
+- 遊戯王OCG / 遊戯王ラッシュデュエル
+- デュエル・マスターズ
+- ワンピースカードゲーム
+- ドラゴンボールスーパーカードゲーム フュージョンワールド
+- ヴァイスシュヴァルツ
+- カードファイト!! ヴァンガード
+- バトルスピリッツ
+- シャドウバースエボルヴ
+- UNION ARENA（ユニオンアリーナ）
+- Reバース for you
+
+**海外・輸入タイトル**
+- Magic: The Gathering（MTG）
+- Pokémon TCG（英語版）
+- Lorcana（ディズニー）
+- Flesh and Blood
+
+検索キーワード例:
+- "トレーディングカード 新発売 2026"
+- "[タイトル名] 新弾 発売日 2026"
+- "[タイトル名] booster release date 2026"
+
+発売済み（直近1ヶ月以内）・予約受付中・近日発売予定の情報を幅広く収集する。
+
+### 各パックの収集情報
+
+- **カード種類**: ゲームタイトル・シリーズ名
+- **パック名**: 正式なパック・商品名
+- **発売日**: 発売日または発売予定日
+- **コレクション価値**: レアリティ構成、注目カード、封入率、市場での希少性や人気度の見通し
+- **値段**: 希望小売価格（1パック・1BOX・セット等）
+- **購入方法**: 取り扱い店舗（家電量販店、カードショップ、コンビニ等）、オンラインショップ
+- **予約方法**: 予約受付状況、予約可能な店舗・サイト、予約締切日
+
+---
+
+## Step 2: HTMLレポートの生成
+
+**ファイル保存先**: `reports/trading-card-release-$DATE.html`
+（`$DATE` は今日の日付 `YYYY-MM-DD`）
+
+以下のテンプレートを使い、`<!-- FILL -->` をすべて実データで置き換えること。
+
+```html
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>トレカ新発売情報レポート <!-- FILL:日付 --></title>
+<style>
+  body { font-family: sans-serif; max-width: 960px; margin: 0 auto; padding: 24px; background:#f8fafc; color:#1e293b; }
+  h1 { background: linear-gradient(135deg, #7c3aed, #4f46e5); color: white; padding: 20px 24px; border-radius: 8px; margin-bottom: 8px; font-size: 1.4rem; }
+  .meta { color: #64748b; font-size: 0.85rem; margin-bottom: 24px; }
+  .summary { background: #f5f3ff; border-left: 4px solid #7c3aed; padding: 14px 18px; border-radius: 0 8px 8px 0; margin-bottom: 28px; line-height: 1.7; }
+  h2 { font-size: 1.15rem; border-bottom: 2px solid #e2e8f0; padding-bottom: 6px; margin: 32px 0 14px; color: #1e293b; }
+  h3 { font-size: 0.95rem; color: #7c3aed; margin: 18px 0 8px; }
+  .card-section { background: white; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px 20px; margin-bottom: 20px; }
+  .card-section h3 { margin-top: 0; font-size: 1.05rem; color: #4f46e5; }
+  table { width: 100%; border-collapse: collapse; font-size: 0.88rem; margin-bottom: 12px; }
+  th { background: #e2e8f0; padding: 8px 10px; text-align: left; font-weight: 600; }
+  td { padding: 8px 10px; border-bottom: 1px solid #e2e8f0; vertical-align: top; }
+  tr:hover td { background: #f1f5f9; }
+  .tag { display: inline-block; font-size: 0.72rem; padding: 2px 8px; border-radius: 3px; margin-right: 4px; font-weight: 600; }
+  .tag.on-sale { background: #dcfce7; color: #166534; }
+  .tag.preorder { background: #fef9c3; color: #854d0e; }
+  .tag.upcoming { background: #e0e7ff; color: #3730a3; }
+  .tag.sold-out { background: #fee2e2; color: #991b1b; }
+  .note { font-size: 0.85rem; color: #64748b; margin-top: 8px; line-height: 1.6; }
+  .highlight-table { margin-top: 24px; }
+  .highlight-table th { background: #7c3aed; color: white; }
+  ul { padding-left: 18px; font-size: 0.9rem; line-height: 1.7; }
+  li { margin-bottom: 6px; }
+  .sources { margin-top: 32px; padding-top: 12px; border-top: 1px solid #e2e8f0; font-size: 0.78rem; color: #64748b; }
+  .sources a { color: #4f46e5; }
+  footer { margin-top: 24px; font-size: 0.75rem; color: #94a3b8; text-align: right; }
+</style>
+</head>
+<body>
+
+<h1>🃏 トレカ新発売情報レポート</h1>
+<div class="meta">📅 <!-- FILL:YYYY年MM月DD日 --> 生成 ｜ <!-- FILL:対象タイトル --></div>
+
+<div class="summary">
+<!-- FILL: 今回の注目ポイントを3〜4文でまとめる。特に人気が見込まれるパック、予約の急ぎ度、コレクション的な注目点を含める -->
+</div>
+
+<!-- ========== 注目パック一覧 ========== -->
+<h2>📋 新発売・予約受付中パック一覧</h2>
+
+<table class="highlight-table">
+  <thead><tr><th>タイトル</th><th>パック名</th><th>発売日</th><th>価格(税込)</th><th>状態</th></tr></thead>
+  <tbody>
+    <!-- FILL: 収集した全パックを一覧で記載。例:
+    <tr>
+      <td><strong>ポケモンカード</strong></td>
+      <td>拡張パック「〇〇」</td>
+      <td>2026年4月25日</td>
+      <td>1パック 180円 / 1BOX 5,400円</td>
+      <td><span class="tag preorder">予約受付中</span></td>
+    </tr>
+    -->
+  </tbody>
+</table>
+
+<!-- ========== 各パック詳細 ========== -->
+<!-- FILL: 収集したパックごとに以下のセクションを繰り返す -->
+
+<div class="card-section">
+  <h3><!-- FILL: [タイトル名] — パック名 --></h3>
+  <table>
+    <tr><th style="width:140px">カード種類</th><td><!-- FILL --></td></tr>
+    <tr><th>発売日</th><td><!-- FILL --></td></tr>
+    <tr><th>値段</th><td><!-- FILL --></td></tr>
+    <tr><th>コレクション価値</th><td><!-- FILL: レアリティ構成、注目カード、封入率、人気度見通し --></td></tr>
+    <tr><th>購入方法</th><td><!-- FILL --></td></tr>
+    <tr><th>予約方法</th><td><!-- FILL --></td></tr>
+  </table>
+  <div class="note">💡 <!-- FILL: 補足情報（特典・キャンペーン・注目カード等） --></div>
+</div>
+
+<!-- ========== まとめ ========== -->
+<h2>🎯 まとめ・おすすめ</h2>
+<ul>
+  <!-- FILL: 特に注目度の高いパックや買い時の商品を3〜5件コメント -->
+</ul>
+
+<!-- ========== 参照元 ========== -->
+<div class="sources">
+  <strong>参照元：</strong>
+  <!-- FILL: <a href="URL">タイトル</a> をカンマ区切りで列挙 -->
+</div>
+
+<footer>Generated by Claude Code / AutoDailyTask ｜ <!-- FILL:YYYY-MM-DD HH:MM JST --></footer>
+</body>
+</html>
+```
+
+---
+
+## 完了条件
+
+- [ ] `reports/trading-card-release-YYYY-MM-DD.html` が生成され、FILL コメントがすべて実データに置換済み
+
+## エラー対応
+
+- 同日付ファイルが存在する場合は上書き
+
+## 使い方
+
+```
+/trading-card-release                   # 全タイトルを対象に検索
+/trading-card-release ポケモンカード    # 特定タイトルに絞って検索
+/trading-card-release 遊戯王 2026年4月  # タイトルと期間を指定して検索
+```

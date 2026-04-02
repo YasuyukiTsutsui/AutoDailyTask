@@ -1,0 +1,70 @@
+graph TB
+    subgraph User["ユーザー"]
+        CLI["Claude Code CLI"]
+    end
+
+    subgraph Skills["スキル（.claude/skills/）"]
+        direction TB
+        DR["/daily-routine<br/>一括並列実行"]
+
+        subgraph ReportSkills["レポート系スキル"]
+            AI["/ai-report<br/>生成AI動向"]
+            TC["/trading-card-release<br/>トレカ新発売情報"]
+            FR["/fashion-report<br/>ファッショントレンド"]
+        end
+
+        subgraph UtilSkills["ユーティリティスキル"]
+            SR["/serve-reports<br/>ビューア起動"]
+            STOP["/stop-reports<br/>ビューア停止"]
+            CR["/cleanup-reports<br/>ダイジェスト化"]
+        end
+    end
+
+    subgraph External["外部ソース"]
+        WEB["WebSearch / WebFetch"]
+    end
+
+    subgraph Output["出力（reports/）"]
+        HTML["レポート HTML<br/>ai-report-YYYY-MM-DD.html<br/>trading-card-release-YYYY-MM-DD.html<br/>fashion-report-YYYY-MM-DD.html"]
+        DIGEST["月次ダイジェスト<br/>digest-YYYY-MM.html"]
+    end
+
+    subgraph Viewer["レポートビューア"]
+        SERVER["serve-reports.py<br/>http://localhost:8080"]
+        BROWSER["ブラウザ"]
+    end
+
+    CLI -->|"/daily-routine"| DR
+    CLI -->|"個別実行"| ReportSkills
+    CLI -->|"個別実行"| UtilSkills
+
+    DR -->|"並列起動<br/>（Agent）"| AI & TC & FR
+    DR -->|"並列起動"| CR
+
+    AI & TC & FR -->|"調査"| WEB
+    FR -.->|"ヒアリング"| CLI
+
+    AI & TC & FR -->|"生成"| HTML
+    CR -->|"集約"| DIGEST
+    CR -->|"古いファイル削除"| HTML
+
+    SR -->|"起動"| SERVER
+    STOP -->|"停止"| SERVER
+    SERVER --> BROWSER
+    HTML & DIGEST -->|"配信"| SERVER
+
+    classDef skill fill:#4f46e5,color:#fff,stroke:none,rx:8
+    classDef report fill:#7c3aed,color:#fff,stroke:none,rx:8
+    classDef util fill:#0891b2,color:#fff,stroke:none,rx:8
+    classDef external fill:#ea580c,color:#fff,stroke:none,rx:8
+    classDef output fill:#16a34a,color:#fff,stroke:none,rx:8
+    classDef viewer fill:#e11d48,color:#fff,stroke:none,rx:8
+    classDef user fill:#1e293b,color:#fff,stroke:none,rx:8
+
+    class CLI user
+    class DR skill
+    class AI,TC,FR report
+    class SR,STOP,CR util
+    class WEB external
+    class HTML,DIGEST output
+    class SERVER,BROWSER viewer

@@ -16,13 +16,19 @@ AutoDailyTask/
 ├── .claude/
 │   ├── settings.json                # Hooks 設定
 │   ├── skills/
-│   │   └── ai-report/               # 生成AI最新動向レポート → Slack通知
-│   │       └── SKILL.md
+│   │   ├── ai-report/               # 生成AI最新動向レポート
+│   │   ├── trading-card-release/    # トレカ新発売情報レポート
+│   │   ├── fashion-report/          # ファッションレポート
+│   │   ├── travel-plan/             # 国内旅行プラン
+│   │   ├── serve-reports/           # レポートビューア起動
+│   │   └── stop-reports/            # レポートビューア停止
 │   └── docs/
 │       └── skill-template.md        # 新規スキル作成テンプレート
 ├── scripts/
+│   ├── html-to-pdf.py               # HTML → PDF 変換（weasyprint）
+│   ├── serve-reports.py             # レポートビューア Web サーバー
 │   └── upload-to-slack.sh           # SlackへHTMLファイルをアップロード
-├── reports/                         # 生成されたHTMLレポート（gitignore対象）
+├── reports/                         # 生成されたHTML/PDFレポート（gitignore対象）
 └── tasks/
     ├── templates/                   # タスクテンプレート
     └── archive/                     # アーカイブ済みタスク
@@ -155,23 +161,63 @@ chore: 不要なアーカイブファイルを削除
 
 ## 実装済みスキル
 
-### `/ai-report` — 生成AI最新動向レポート
+### レポート系スキル
 
-技術動向・社会実装・開発者知見の3領域を調査し、HTMLレポートを生成してPDFに変換、Claude上で直接提供する。
+レポート系スキルは共通の出力パターンに従う:
+1. WebSearch で情報を収集
+2. `reports/<skill-name>-YYYY-MM-DD.html` に HTML レポートを生成
+3. `/serve-reports` でブラウザ閲覧可能
+
+| スキル | 概要 | 出力ファイル |
+|---|---|---|
+| `/ai-report` | 生成AI最新動向（技術・社会実装・開発者知見） | `ai-report-YYYY-MM-DD.html` |
+| `/trading-card-release` | トレカ新発売・予約情報 | `trading-card-release-YYYY-MM-DD.html` |
+| `/fashion-report` | ファッショントレンド・おすすめコーデ | `fashion-report-YYYY-MM-DD.html` |
+| `/travel-plan` | 国内旅行プラン（松竹梅グレード別・ホテル提案） | `travel-plan-YYYY-MM-DD.html` |
 
 ```bash
-# 当日分のレポートを生成・投稿
-/ai-report
-
-# 特定日付を指定
-/ai-report 2026-04-01
+/ai-report                          # 当日分を生成
+/ai-report 2026-04-01               # 日付指定
+/trading-card-release               # 全タイトル対象
+/trading-card-release ポケモンカード # タイトル絞り込み
+/fashion-report                     # ヒアリング後にレポート生成
+/travel-plan                        # ヒアリングから開始
+/travel-plan 箱根 1泊2日 カップル   # 条件指定で生成
 ```
 
-**依存**: `pip3 install weasyprint`（初回のみ）
+### ユーティリティスキル
 
-**出力**:
-- `reports/ai-report-YYYY-MM-DD.html`（ダークテーマ、CSSビジュアライゼーション付き）
-- `reports/ai-report-YYYY-MM-DD.pdf`（Claude上で直接表示可能）
+| スキル | 概要 |
+|---|---|
+| `/serve-reports` | `reports/` の Web ビューアを起動（デフォルト: port 8080） |
+| `/stop-reports` | ビューアを停止 |
+
+### レポート系スキルを新規追加するときの手順
+
+1. `.claude/skills/<skill-name>/SKILL.md` を作成（テンプレート参照）
+2. HTML 出力先を `reports/<skill-name>-YYYY-MM-DD.html` に統一する
+3. HTML テンプレート内に `<div class="summary">` を含める（ビューア一覧のプレビューに使われる）
+4. `scripts/serve-reports.py` の `CATEGORIES` 辞書にエントリを追加する:
+   ```python
+   CATEGORIES = {
+       "ai-report":             ("AI動向レポート", "🤖"),
+       "trading-card-release":  ("トレカ新発売情報", "🃏"),
+       "fashion-report":        ("ファッションレポート", "👗"),
+       "travel-plan":           ("国内旅行プラン", "✈️"),
+       "<skill-name>":          ("<表示名>", "<絵文字>"),  # ← 追加
+   }
+   ```
+5. CLAUDE.md のスキル一覧テーブルにも行を追加する
+6. `/serve-reports` で一覧表示・検索・フィルタが正しく動作することを確認する
+
+### レポートビューア (`/serve-reports`) の機能
+
+- **カテゴリ別グループ表示**: `CATEGORIES` に定義された種別で自動分類（折りたたみ可能）
+- **日付別サブグループ**: ファイル名の `YYYY-MM-DD` を自動検出
+- **検索**: ファイル名でリアルタイム絞り込み
+- **フィルタ**: カテゴリボタンで種別切り替え
+- **概要プレビュー**: `.summary` 要素の先頭テキストを一覧に表示
+- **リスト/グリッド切替**: 表示モード変更
 
 ## コンテキスト管理のベストプラクティス
 
