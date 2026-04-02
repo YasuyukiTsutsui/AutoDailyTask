@@ -8,6 +8,12 @@ reports/*.html
 # ログ
 .claude/session.log
 
+# プライベートスキル（pushしない）
+.claude/skills/vtuber-riona/
+
+# Python
+__pycache__/
+
 # OS
 .DS_Store
 Thumbs.db
