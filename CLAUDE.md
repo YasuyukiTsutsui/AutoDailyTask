@@ -23,6 +23,7 @@ AutoDailyTask/
 │   │   ├── gift-concierge/          # プレゼント提案
 │   │   ├── travel-plan/             # 国内旅行プラン
 │   │   ├── vtuber-riona/            # VTuber推し活レポート
+│   │   ├── weekly-digest/           # 週次ダイジェスト
 │   │   ├── daily-routine/           # 一括レポート実行
 │   │   ├── cleanup-reports/         # レポート整理
 │   │   ├── serve-reports/           # レポートビューア起動
@@ -184,6 +185,7 @@ chore: 不要なアーカイブファイルを削除
 | `/gift-concierge` | プレゼント・贈り物提案 | `gift-concierge-YYYY-MM-DD.html` |
 | `/travel-plan` | 国内旅行プラン（松竹梅グレード別・ホテル提案） | `travel-plan-YYYY-MM-DD.html` |
 | `/vtuber-riona` | VTuber推し活レポート（配信予定・グッズ等） | `vtuber-riona-YYYY-MM-DD.html` |
+| `/weekly-digest` | 過去1週間のレポート横断要約・トレンド変化 | `weekly-digest-YYYY-MM-DD.html` |
 
 ```bash
 /ai-report                          # 当日分を生成
@@ -197,6 +199,8 @@ chore: 不要なアーカイブファイルを削除
 /travel-plan                        # ヒアリングから開始
 /travel-plan 箱根 1泊2日 カップル   # 条件指定で生成
 /vtuber-riona                       # 最新情報を調査
+/weekly-digest                      # 過去7日間のダイジェスト
+/weekly-digest 14                   # 過去14日間のダイジェスト
 ```
 
 ### ユーティリティスキル
@@ -259,8 +263,19 @@ chore: 不要なアーカイブファイルを削除
 - **ZIPエクスポート**: 選択したレポートをZIPファイルでダウンロード
 - **差分比較**: 2件選択して本文テキストのunified diffを表示
 
+**ウォッチリスト + アラート:**
+- サイドバーからキーワードを登録（例: `2002R`, `ポケモンカード`, `GPT-5`）
+- ダッシュボードに「ウォッチリストアラート」セクションが表示され、登録キーワードにマッチしたレポートをハイライト
+- ウォッチリストは `reports/.metadata.json` の `watchlist` キーに保存
+
+**プロフィール設定:**
+- サイドバーの「プロフィール編集」からユーザー情報を登録（性別・年代・体型・スタイル・靴サイズ・予算・興味・出発地）
+- `config/profile.json` に保存
+- ヒアリング系スキル（fashion-report, travel-plan, gift-concierge）がプロフィールを参照し、設定済みの項目はヒアリングをスキップ
+
 **データ永続化:**
-- お気に入り・ピン・タグ・メモは `reports/.metadata.json` にサーバーサイドで保存
+- お気に入り・ピン・タグ・メモ・ウォッチリストは `reports/.metadata.json` にサーバーサイドで保存
+- プロフィールは `config/profile.json` に保存
 - プライベートトグル状態・アクティブビュー・サイドバー折りたたみ状態は localStorage に保存
 
 ### スケジューラー (`scripts/scheduler.sh`)

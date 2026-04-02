@@ -33,6 +33,7 @@ from urllib.parse import unquote
 REPORTS_DIR = Path(__file__).parent.parent / "reports"
 PROJECT_DIR = Path(__file__).parent.parent
 METADATA_PATH = REPORTS_DIR / ".metadata.json"
+PROFILE_PATH = Path(__file__).parent.parent / "config" / "profile.json"
 
 # ---------------------------------------------------------------------------
 # スキル定義: (表示名, アイコン, 引数なしで実行可能か, プライベート)
@@ -103,6 +104,7 @@ CATEGORIES = {
     "travel-plan":           ("国内旅行プラン", "✈️", True),
     "vtuber-riona":          ("VTuber推し活", "🎀", True),
     "gift-concierge":        ("プレゼント提案", "🎁", False),
+    "weekly-digest":         ("週次ダイジェスト", "📰", False),
 }
 DEFAULT_CATEGORY = ("その他", "📝", False)
 
@@ -126,6 +128,67 @@ def save_metadata(data):
     METADATA_PATH.write_text(
         json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8"
     )
+
+
+# ---------------------------------------------------------------------------
+# プロフィール
+# ---------------------------------------------------------------------------
+
+def load_profile():
+    if PROFILE_PATH.exists():
+        try:
+            return json.loads(PROFILE_PATH.read_text(encoding="utf-8"))
+        except Exception:
+            pass
+    return {}
+
+
+def save_profile(data):
+    PROFILE_PATH.parent.mkdir(parents=True, exist_ok=True)
+    PROFILE_PATH.write_text(
+        json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
+
+
+# ---------------------------------------------------------------------------
+# ウォッチリストアラート
+# ---------------------------------------------------------------------------
+
+def match_watchlist():
+    """最近のレポートからウォッチリストキーワードにマッチするものを検索"""
+    meta = load_metadata()
+    watchlist = meta.get("watchlist", [])
+    alerts = []
+    if not watchlist or not REPORTS_DIR.exists():
+        return alerts
+    seen = set()
+    for f in sorted(REPORTS_DIR.iterdir(), key=lambda p: p.stat().st_mtime, reverse=True):
+        if f.suffix != ".html":
+            continue
+        if len(alerts) >= 30:
+            break
+        text = extract_text(f).lower()
+        summary = extract_summary(f)
+        cat = classify(f.name)
+        label, icon, is_private = CATEGORIES.get(cat, DEFAULT_CATEGORY)
+        for keyword in watchlist:
+            key = (f.name, keyword)
+            if key in seen:
+                continue
+            if keyword.lower() in text:
+                seen.add(key)
+                m = re.search(r"\d{4}-\d{2}-\d{2}", f.name)
+                alerts.append({
+                    "file": f.name,
+                    "keyword": keyword,
+                    "summary": summary,
+                    "category": cat,
+                    "icon": icon,
+                    "label": label,
+                    "private": is_private,
+                    "date": m.group() if m else "",
+                })
+    return alerts
 
 
 # ---------------------------------------------------------------------------
@@ -585,6 +648,25 @@ INDEX_HTML = """\
   .hidden { display: none !important; }
   .no-results { text-align: center; color: #94a3b8; padding: 32px; display: none; }
   .no-results.visible { display: block; }
+
+  /* --- alert cards --- */
+  .alert-card { background: white; border-left: 4px solid #f59e0b; border-radius: 0 10px 10px 0;
+                padding: 12px 16px; margin-bottom: 8px; display: flex; align-items: center;
+                gap: 10px; text-decoration: none; color: inherit;
+                box-shadow: 0 1px 3px rgba(0,0,0,.06); transition: all .15s; }
+  .alert-card:hover { box-shadow: 0 4px 14px rgba(245,158,11,.2); transform: translateY(-1px); }
+  .alert-keyword { font-size: 0.7rem; background: #fef3c7; color: #92400e; padding: 2px 8px;
+                   border-radius: 6px; font-weight: 700; flex-shrink: 0; }
+  .alert-info { flex: 1; min-width: 0; }
+  .alert-file { font-weight: 600; font-size: 0.85rem; }
+  .alert-snippet { font-size: 0.75rem; color: #64748b; margin-top: 2px;
+                   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  /* --- watchlist items --- */
+  .wl-item { display: inline-flex; align-items: center; gap: 4px; font-size: 0.78rem;
+             padding: 3px 10px; border-radius: 12px; background: #fef3c7; color: #92400e;
+             font-weight: 600; cursor: pointer; margin: 2px; }
+  .wl-item:hover { background: #fee2e2; color: #991b1b; }
 </style>
 </head>
 <body>
@@ -643,6 +725,27 @@ INDEX_HTML = """\
     </div>
   </div>
 
+  <div class="sidebar-section" id="section-watchlist">
+    <div class="sidebar-section-title">ウォッチリスト</div>
+    <div class="sidebar-section-body">
+      <div id="watchlist-items"></div>
+      <div class="tag-input-row" style="margin-top:6px">
+        <input class="tag-input" id="watchlist-input" placeholder="キーワードを追加…">
+        <button class="tag-add-btn" id="watchlist-add">+</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="sidebar-section" id="section-profile">
+    <div class="sidebar-section-title">プロフィール</div>
+    <div class="sidebar-section-body">
+      <button class="skill-btn" id="profile-edit-btn" style="justify-content:center">
+        <span class="skill-icon">&#9998;</span>
+        <span class="skill-name">プロフィール編集</span>
+      </button>
+    </div>
+  </div>
+
   <div class="sidebar-section" id="section-skills">
     <div class="sidebar-section-title">スキル実行</div>
     <div class="sidebar-section-body">
@@ -672,6 +775,7 @@ INDEX_HTML = """\
 <script>
   window.__SKILL_FORMS = {skill_forms_json};
   window.__METADATA = {metadata_json};
+  window.__PROFILE = {profile_json};
 </script>
 
 <!-- ===== Dashboard View ===== -->
@@ -746,6 +850,31 @@ INDEX_HTML = """\
     <div class="memo-actions">
       <button class="btn-cancel" id="memo-cancel">キャンセル</button>
       <button class="btn-submit" id="memo-save">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- profile edit modal -->
+<div class="dialog-overlay hidden" id="profile-dialog">
+  <div class="dialog" style="max-width:480px">
+    <h3>&#9998; プロフィール設定</h3>
+    <p style="font-size:0.8rem;color:#64748b;margin-bottom:12px">スキルがヒアリングをスキップするための情報です</p>
+    <div class="form-dialog-body" style="padding:0">
+      <div class="form-field"><label>性別</label>
+        <select id="pf-gender"><option value="">未設定</option><option value="メンズ">メンズ</option><option value="レディース">レディース</option></select></div>
+      <div class="form-field"><label>年代</label>
+        <select id="pf-age"><option value="">未設定</option><option value="10代">10代</option><option value="20代">20代</option><option value="30代">30代</option><option value="40代">40代</option><option value="50代">50代</option></select></div>
+      <div class="form-field"><label>体型</label><input id="pf-body_type" placeholder="例: 170cm 細身"></div>
+      <div class="form-field"><label>好みのスタイル</label><input id="pf-style_preference" placeholder="例: きれいめ、カジュアル"></div>
+      <div class="form-field"><label>靴のサイズ</label><input id="pf-shoe_size" placeholder="例: 27.0cm"></div>
+      <div class="form-field"><label>ファッション予算</label><input id="pf-budget_fashion" placeholder="例: 2万円"></div>
+      <div class="form-field"><label>ギフト予算</label><input id="pf-budget_gift" placeholder="例: 1万円"></div>
+      <div class="form-field"><label>興味・関心（カンマ区切り）</label><input id="pf-interests" placeholder="例: スニーカー, トレカ, カメラ"></div>
+      <div class="form-field"><label>出発地</label><input id="pf-departure_city" placeholder="例: 静岡、東京"></div>
+    </div>
+    <div class="dialog-actions" style="margin-top:12px">
+      <button class="btn-cancel" id="profile-cancel">キャンセル</button>
+      <button class="btn-submit" id="profile-save">保存</button>
     </div>
   </div>
 </div>
@@ -1330,6 +1459,80 @@ INDEX_HTML = """\
     setTimeout(function() { toastEl.classList.remove('show'); }, duration);
   }
 
+  // --- watchlist management ---
+  function renderWatchlist() {
+    var container = document.getElementById('watchlist-items');
+    var wl = meta.watchlist || [];
+    container.innerHTML = '';
+    wl.forEach(function(kw) {
+      var el = document.createElement('span');
+      el.className = 'wl-item'; el.textContent = kw + ' \u2715';
+      el.addEventListener('click', function() {
+        meta.watchlist = (meta.watchlist||[]).filter(function(x){return x!==kw;});
+        saveMeta(); renderWatchlist();
+      });
+      container.appendChild(el);
+    });
+  }
+  renderWatchlist();
+  document.getElementById('watchlist-add').addEventListener('click', function() { addWatchKeyword(); });
+  document.getElementById('watchlist-input').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') addWatchKeyword();
+  });
+  function addWatchKeyword() {
+    var input = document.getElementById('watchlist-input');
+    var val = input.value.trim();
+    if (!val) return;
+    if (!meta.watchlist) meta.watchlist = [];
+    if (meta.watchlist.indexOf(val) < 0) meta.watchlist.push(val);
+    input.value = '';
+    saveMeta(); renderWatchlist();
+    showToast(val + ' をウォッチリストに追加しました');
+  }
+
+  // --- profile management ---
+  var profileFields = ['gender','age','body_type','style_preference','shoe_size',
+                       'budget_fashion','budget_gift','interests','departure_city'];
+  var profileData = window.__PROFILE || {};
+
+  document.getElementById('profile-edit-btn').addEventListener('click', function() {
+    profileFields.forEach(function(f) {
+      var el = document.getElementById('pf-' + f);
+      if (!el) return;
+      var val = profileData[f] || '';
+      if (f === 'interests' && Array.isArray(val)) val = val.join(', ');
+      el.value = val;
+    });
+    document.getElementById('profile-dialog').classList.remove('hidden');
+  });
+  document.getElementById('profile-cancel').addEventListener('click', function() {
+    document.getElementById('profile-dialog').classList.add('hidden');
+  });
+  document.getElementById('profile-dialog').addEventListener('click', function(e) {
+    if (e.target === document.getElementById('profile-dialog'))
+      document.getElementById('profile-dialog').classList.add('hidden');
+  });
+  document.getElementById('profile-save').addEventListener('click', function() {
+    var data = {};
+    profileFields.forEach(function(f) {
+      var el = document.getElementById('pf-' + f);
+      if (!el) return;
+      if (f === 'interests') {
+        data[f] = el.value.split(',').map(function(s){return s.trim();}).filter(function(s){return s;});
+      } else {
+        data[f] = el.value.trim();
+      }
+    });
+    profileData = data;
+    fetch('/api/profile', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(data)
+    });
+    document.getElementById('profile-dialog').classList.add('hidden');
+    showToast('プロフィールを保存しました');
+  });
+
   applyFilters();
 })();
 </script>
@@ -1360,6 +1563,7 @@ def build_skill_buttons():
 
 def _render(count, body, nav_items="", dashboard_content=""):
     meta = load_metadata()
+    profile = load_profile()
     return (INDEX_HTML
             .replace("{count}", str(count))
             .replace("{body}", body)
@@ -1367,6 +1571,7 @@ def _render(count, body, nav_items="", dashboard_content=""):
             .replace("{skill_buttons}", build_skill_buttons())
             .replace("{skill_forms_json}", json.dumps(SKILL_FORMS, ensure_ascii=False))
             .replace("{metadata_json}", json.dumps(meta, ensure_ascii=False))
+            .replace("{profile_json}", json.dumps(profile, ensure_ascii=False))
             .replace("{dashboard_content}", dashboard_content))
 
 
@@ -1398,6 +1603,30 @@ def build_dashboard():
     rows.append('<div class="stat-card"><div class="stat-value">%d</div><div class="stat-label">お気に入り</div></div>' % len(meta.get("favorites", [])))
     rows.append('<div class="stat-card"><div class="stat-value">%s</div><div class="stat-label">最新レポート</div></div>' % html_mod.escape(latest_date))
     rows.append('</div>')
+
+    # watchlist alerts
+    alerts = match_watchlist()
+    if alerts:
+        rows.append('<div class="dash-section">')
+        rows.append('<div class="dash-section-title">\U0001F514 ウォッチリストアラート</div>')
+        seen_alert = set()
+        for a in alerts:
+            if a["file"] in seen_alert:
+                continue
+            seen_alert.add(a["file"])
+            priv = ' style="display:none"' if a["private"] else ""
+            rows.append(
+                '<a class="alert-card" href="/reports/%s" target="_blank"%s>'
+                '<span class="alert-keyword">%s</span>'
+                '<div class="alert-info">'
+                '<div class="alert-file">%s %s</div>'
+                '<div class="alert-snippet">%s</div>'
+                '</div></a>'
+                % (a["file"], priv, html_mod.escape(a["keyword"]),
+                   a["icon"], html_mod.escape(a["file"]),
+                   html_mod.escape(a["summary"][:100]) if a["summary"] else "")
+            )
+        rows.append('</div>')
 
     # pinned section
     pinned = meta.get("pins", [])
@@ -1667,6 +1896,14 @@ class Handler(BaseHTTPRequestHandler):
             self.send_json(200, load_metadata())
             return
 
+        if path == "/api/profile":
+            self.send_json(200, load_profile())
+            return
+
+        if path == "/api/watchlist-alerts":
+            self.send_json(200, {"alerts": match_watchlist()})
+            return
+
         if path.startswith("/reports/"):
             filename = path[len("/reports/"):]
             filepath = REPORTS_DIR / filename
@@ -1710,6 +1947,12 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/metadata":
             data = json.loads(self.rfile.read(length)) if length > 0 else {}
             save_metadata(data)
+            self.send_json(200, {"ok": True})
+            return
+
+        if path == "/api/profile":
+            data = json.loads(self.rfile.read(length)) if length > 0 else {}
+            save_profile(data)
             self.send_json(200, {"ok": True})
             return
 
